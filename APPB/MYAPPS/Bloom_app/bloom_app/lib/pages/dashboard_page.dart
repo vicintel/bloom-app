@@ -1,7 +1,8 @@
+import '../services/api_keys.dart';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
@@ -39,8 +40,8 @@ class _DashboardPageState extends State<DashboardPage> {
     if (_fetchingInsight) return;
     setState(() => _fetchingInsight = true);
     try {
-      final apiKey = dotenv.env['GROQ_API_KEY'];
-      if (apiKey == null || apiKey.isEmpty) {
+      final apiKey = groqApiKey;
+      if (apiKey.isEmpty) {
         await state.updateAIInsight(state.phaseDescription);
         return;
       }

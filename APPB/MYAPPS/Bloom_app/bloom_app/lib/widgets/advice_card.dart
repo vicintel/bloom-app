@@ -1,6 +1,7 @@
+import '../services/api_keys.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import '../state/cycle_state.dart';
@@ -24,8 +25,8 @@ class _AdviceCardState extends State<AdviceCard> {
       _error = null;
     });
     try {
-      final apiKey = dotenv.env['GROQ_API_KEY'];
-      if (apiKey == null || apiKey.isEmpty) {
+      final apiKey = groqApiKey;
+      if (apiKey.isEmpty) {
         setState(() => _error = 'No API key configured.');
         return;
       }

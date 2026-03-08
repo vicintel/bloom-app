@@ -1,7 +1,6 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'app_router.dart';
@@ -14,13 +13,6 @@ import 'widgets/privacy_shield.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await dotenv.load(fileName: ".env");
-  } catch (e) {
-    if (kDebugMode) {
-      print('Note: .env loaded or fallback mode active.');
-    }
-  }
   PrivacyShield.enablePrivacyScreen();
   runApp(
     MultiProvider(
@@ -106,7 +98,7 @@ class _RootAppState extends State<RootApp> {
           brightness: Brightness.dark,
         );
 
-        final pageTransitions = const PageTransitionsTheme(
+        const pageTransitions = PageTransitionsTheme(
           builders: {
             TargetPlatform.android: ZoomPageTransitionsBuilder(),
             TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
