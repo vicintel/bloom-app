@@ -20,6 +20,10 @@ class CycleState extends ChangeNotifier {
   List<Map<String, dynamic>> _checkinHistory = [];
   Map<String, int> _waterSleepToday = {};
 
+  // Ovulation tracking
+  List<Map<String, dynamic>> _ovulationLogs = [];
+  DateTime? _confirmedOvulationDate;
+
   CycleState() {
     _load();
   }
@@ -37,6 +41,10 @@ class CycleState extends ChangeNotifier {
 
   List<Map<String, dynamic>> get checkinHistory =>
       List.unmodifiable(_checkinHistory);
+
+  List<Map<String, dynamic>> get ovulationLogs =>
+      List.unmodifiable(_ovulationLogs);
+  DateTime? get confirmedOvulationDate => _confirmedOvulationDate;
 
   int get waterToday => _waterSleepToday['water'] ?? 0;
   int get sleepToday => _waterSleepToday['sleep'] ?? 0;
@@ -185,6 +193,19 @@ class CycleState extends ChangeNotifier {
     // Load birth control mode
     birthControlMode = prefs.getBool('birth_control_mode') ?? false;
 
+    // Load ovulation logs
+    final ovulationJson = prefs.getString('ovulation_logs');
+    if (ovulationJson != null) {
+      final List<dynamic> list = jsonDecode(ovulationJson);
+      _ovulationLogs = list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    }
+
+    // Load confirmed ovulation date
+    final confirmedMs = prefs.getInt('confirmed_ovulation_date');
+    if (confirmedMs != null) {
+      _confirmedOvulationDate = DateTime.fromMillisecondsSinceEpoch(confirmedMs);
+    }
+
     notifyListeners();
   }
 
@@ -257,6 +278,39 @@ class CycleState extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('checkin_history');
+  }
+
+  Future<void> logOvulationSigns(Map<String, dynamic> entry) async {
+    final entryWithDate = {
+      ...entry,
+      'date': DateTime.now().toIso8601String(),
+    };
+    // Replace today's log if one already exists
+    final today = DateTime.now();
+    _ovulationLogs.removeWhere((e) {
+      final d = DateTime.tryParse(e['date'] as String? ?? '');
+      return d != null && d.year == today.year && d.month == today.month && d.day == today.day;
+    });
+    _ovulationLogs.add(entryWithDate);
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('ovulation_logs', jsonEncode(_ovulationLogs));
+  }
+
+  Future<void> confirmOvulation(DateTime date) async {
+    _confirmedOvulationDate = date;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('confirmed_ovulation_date', date.millisecondsSinceEpoch);
+  }
+
+  Future<void> clearOvulationLogs() async {
+    _ovulationLogs.clear();
+    _confirmedOvulationDate = null;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('ovulation_logs');
+    await prefs.remove('confirmed_ovulation_date');
   }
 
   Future<void> clearPeriodHistory() async {

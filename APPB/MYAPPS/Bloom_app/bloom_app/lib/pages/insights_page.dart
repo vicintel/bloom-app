@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
@@ -315,7 +316,17 @@ Keep it warm, supportive, and under 200 words.
                       const SizedBox(height: 28),
 
                       // ── Fertile Window Info ────────────────────────────
-                      _SectionTitle(title: 'Fertile Window'),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _SectionTitle(title: 'Fertile Window'),
+                          TextButton.icon(
+                            onPressed: () => context.push('/ovulation'),
+                            icon: const Icon(Icons.track_changes, size: 16),
+                            label: const Text('Track', style: TextStyle(fontSize: 13)),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 12),
                       if (fertileStart == null || fertileEnd == null)
                         _InfoCard(

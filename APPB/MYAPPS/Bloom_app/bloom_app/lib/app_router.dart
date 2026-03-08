@@ -11,6 +11,7 @@ import 'pages/nutrition_page.dart';
 import 'pages/fitness_page.dart';
 import 'pages/history_page.dart';
 import 'pages/insights_page.dart';
+import 'pages/ovulation_tracker_page.dart';
 
 
 class MainShell extends StatelessWidget {
@@ -111,6 +112,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/security',
       builder: (context, state) => const SecuritySettingsPage(),
+    ),
+    GoRoute(
+      path: '/ovulation',
+      builder: (context, state) => const OvulationTrackerPage(),
     ),
     ShellRoute(
       builder: (context, state, child) => MainShell(child: child),
