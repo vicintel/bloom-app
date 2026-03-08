@@ -51,6 +51,34 @@ class NotificationService {
     );
   }
 
+  /// Schedules a "late period" alert 2 days after the [expectedDate].
+  /// This reminds the user to log their period if it hasn't been logged.
+  static Future<void> scheduleLateperiodAlert(DateTime expectedDate) async {
+    final alertDate = expectedDate.add(const Duration(days: 2));
+    final now = DateTime.now();
+    // Only schedule if the alert date is in the future
+    if (alertDate.isBefore(now)) return;
+
+    final tzAlertDate = tz.TZDateTime.from(alertDate, tz.local);
+
+    await _notifications.zonedSchedule(
+      id: 100,
+      title: 'Period Check-in',
+      body: 'Your period was expected 2 days ago. Have you logged it? Tap to update Bloom.',
+      scheduledDate: tzAlertDate,
+      notificationDetails: const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'bloom_period_alert',
+          'Period Alerts',
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+        iOS: DarwinNotificationDetails(),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+    );
+  }
+
   static tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
     final now = tz.TZDateTime.now(tz.local);
     var scheduled = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);

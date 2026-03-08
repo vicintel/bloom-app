@@ -171,6 +171,9 @@ class _DashboardPageState extends State<DashboardPage> {
                       // Stats chips row
                       if (state.periodStartDate != null) ...[
                         _buildStatsRow(context, state),
+                        const SizedBox(height: 10),
+                        // Today's Wellness row
+                        _buildWellnessRow(context, state),
                         const SizedBox(height: 14),
                         _buildPredictionCard(context, state),
                         const SizedBox(height: 24),
@@ -250,7 +253,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 5),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
@@ -275,7 +278,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 9),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(22),
                           border: Border.all(color: Colors.white38),
                         ),
@@ -374,6 +377,61 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  // ─── Today's Wellness Row ─────────────────────────────────────────────────
+
+  Widget _buildWellnessRow(BuildContext context, CycleState state) {
+    final water = state.waterToday;
+    final sleep = state.sleepToday;
+    if (water == 0 && sleep == 0) return const SizedBox.shrink();
+
+    return Row(
+      children: [
+        if (water > 0)
+          _wellnessChip(
+            context,
+            Icons.water_drop,
+            '$water glasses',
+            const Color(0xFF29B6F6),
+          ),
+        if (water > 0 && sleep > 0) const SizedBox(width: 10),
+        if (sleep > 0)
+          _wellnessChip(
+            context,
+            Icons.bedtime_outlined,
+            '$sleep hrs sleep',
+            const Color(0xFF7E57C2),
+          ),
+      ],
+    );
+  }
+
+  Widget _wellnessChip(
+      BuildContext context, IconData icon, String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPredictionCard(BuildContext context, CycleState state) {
     final days = state.daysUntilNextPeriod;
     final nextDate = state.nextPeriodDate;
@@ -411,16 +469,16 @@ class _DashboardPageState extends State<DashboardPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(9),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
+              color: color.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color, size: 18),
@@ -446,7 +504,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     color: Theme.of(context)
                         .colorScheme
                         .onSurface
-                        .withOpacity(0.55),
+                        .withValues(alpha: 0.55),
                   ),
                 ),
               ],
@@ -463,9 +521,9 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -491,14 +549,34 @@ class _DashboardPageState extends State<DashboardPage> {
 
   // ─── Calendar ─────────────────────────────────────────────────────────────
 
+  bool _isInFertileWindow(DateTime day, CycleState state) {
+    final start = state.fertileWindowStart;
+    final end = state.fertileWindowEnd;
+    if (start == null || end == null) return false;
+    final d = DateTime(day.year, day.month, day.day);
+    final s = DateTime(start.year, start.month, start.day);
+    final e = DateTime(end.year, end.month, end.day);
+    return !d.isBefore(s) && !d.isAfter(e);
+  }
+
+  bool _isOvulationDay(DateTime day, CycleState state) {
+    final ov = state.ovulationDay;
+    if (ov == null) return false;
+    return isSameDay(day, ov);
+  }
+
+  bool _isPeriodHistoryDay(DateTime day, CycleState state) {
+    return state.periodHistory.any((d) => isSameDay(d, day));
+  }
+
   Widget _buildCalendarCard(BuildContext context, CycleState state) {
     final nextPeriod = state.nextPeriodDate;
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: Theme.of(context).colorScheme.outline.withOpacity(0.15),
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.15),
         ),
       ),
       child: Column(
@@ -518,12 +596,68 @@ class _DashboardPageState extends State<DashboardPage> {
             },
             calendarBuilders: CalendarBuilders(
               defaultBuilder: (context, day, focusedDay) {
-                // Highlight predicted next period day
+                // Ovulation day — yellow star marker
+                if (_isOvulationDay(day, state)) {
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Container(
+                        margin: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFD54F).withValues(alpha: 0.3),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text(
+                            '${day.day}',
+                            style: const TextStyle(
+                              color: Color(0xFFF57F17),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 2,
+                        right: 2,
+                        child: Icon(Icons.star,
+                            size: 9, color: const Color(0xFFF57F17).withValues(alpha: 0.9)),
+                      ),
+                    ],
+                  );
+                }
+
+                // Fertile window — green tinted circle
+                if (_isInFertileWindow(day, state)) {
+                  return Container(
+                    margin: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF81C784).withValues(alpha: 0.25),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                          color: const Color(0xFF81C784).withValues(alpha: 0.5),
+                          width: 1),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${day.day}',
+                        style: const TextStyle(
+                          color: Color(0xFF2E7D32),
+                          fontWeight: FontWeight.w500,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  );
+                }
+
+                // Predicted next period day — red circle
                 if (nextPeriod != null && isSameDay(day, nextPeriod)) {
                   return Container(
                     margin: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE57373).withOpacity(0.25),
+                      color: const Color(0xFFE57373).withValues(alpha: 0.25),
                       shape: BoxShape.circle,
                       border: Border.all(
                           color: const Color(0xFFE57373), width: 1.5),
@@ -540,6 +674,33 @@ class _DashboardPageState extends State<DashboardPage> {
                     ),
                   );
                 }
+
+                // Period history — red dot below day number
+                if (_isPeriodHistoryDay(day, state)) {
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Center(
+                        child: Text(
+                          '${day.day}',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 4,
+                        child: Container(
+                          width: 5,
+                          height: 5,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFE57373),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+
                 return null;
               },
             ),
@@ -554,7 +715,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 color: (state.periodStartDate != null
                         ? state.phaseColor
                         : Theme.of(context).colorScheme.primary)
-                    .withOpacity(0.25),
+                    .withValues(alpha: 0.25),
                 shape: BoxShape.circle,
               ),
               todayTextStyle: TextStyle(
@@ -564,7 +725,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 fontWeight: FontWeight.bold,
               ),
               weekendTextStyle: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
             headerStyle: const HeaderStyle(
@@ -573,47 +734,67 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
             daysOfWeekStyle: DaysOfWeekStyle(
               weekdayStyle: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
                 fontSize: 12,
               ),
               weekendStyle: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
                 fontSize: 12,
               ),
             ),
           ),
-          if (nextPeriod != null) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: Row(
-                children: [
-                  Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE57373).withOpacity(0.25),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                          color: const Color(0xFFE57373), width: 1.5),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Predicted period start',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurface
-                          .withOpacity(0.5),
-                    ),
-                  ),
-                ],
-              ),
+          // Legend
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Row(
+              children: [
+                _legendItem(
+                  color: const Color(0xFFE57373),
+                  label: 'Period',
+                  isBorder: true,
+                ),
+                const SizedBox(width: 12),
+                _legendItem(
+                  color: const Color(0xFF81C784),
+                  label: 'Fertile',
+                  isBorder: false,
+                ),
+                const SizedBox(width: 12),
+                _legendItem(
+                  color: const Color(0xFFFFD54F),
+                  label: 'Ovulation',
+                  isBorder: false,
+                ),
+              ],
             ),
-          ],
+          ),
         ],
       ),
+    );
+  }
+
+  Widget _legendItem({required Color color, required String label, required bool isBorder}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.3),
+            shape: BoxShape.circle,
+            border: isBorder ? Border.all(color: color, width: 1.5) : null,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
+          ),
+        ),
+      ],
     );
   }
 
@@ -646,7 +827,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: accentColor.withOpacity(0.1),
+                  color: accentColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -682,14 +863,14 @@ class _DashboardPageState extends State<DashboardPage> {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                accentColor.withOpacity(0.12),
-                accentColor.withOpacity(0.04),
+                accentColor.withValues(alpha: 0.12),
+                accentColor.withValues(alpha: 0.04),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: accentColor.withOpacity(0.25)),
+            border: Border.all(color: accentColor.withValues(alpha: 0.25)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -699,7 +880,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: accentColor.withOpacity(0.15),
+                      color: accentColor.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                     ),
                     child:
@@ -724,7 +905,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 style: GoogleFonts.poppins(
                   height: 1.6,
                   fontSize: 14,
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.85),
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.85),
                 ),
               ),
             ],
@@ -801,7 +982,7 @@ class _DashboardPageState extends State<DashboardPage> {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: gradientColors.last.withOpacity(0.35),
+              color: gradientColors.last.withValues(alpha: 0.35),
               blurRadius: 10,
               offset: const Offset(0, 5),
             ),
@@ -816,7 +997,7 @@ class _DashboardPageState extends State<DashboardPage> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: Colors.white, size: 22),
@@ -863,7 +1044,7 @@ class _CycleRingPainter extends CustomPainter {
 
     // Background ring
     final bgPaint = Paint()
-      ..color = Colors.white.withOpacity(0.25)
+      ..color = Colors.white.withValues(alpha: 0.25)
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth;
     canvas.drawCircle(center, radius, bgPaint);

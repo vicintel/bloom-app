@@ -1,5 +1,5 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
 import 'services/auth_service.dart';
 import 'pages/login_page.dart';
 import 'pages/dashboard_page.dart';
@@ -9,37 +9,21 @@ import 'pages/signup_page.dart';
 import 'pages/profile_page.dart';
 import 'pages/nutrition_page.dart';
 import 'pages/fitness_page.dart';
-import 'state/theme_notifier.dart';
-import 'widgets/theme_settings_sheet.dart';
-import 'package:flutter/material.dart';
+import 'pages/history_page.dart';
+import 'pages/insights_page.dart';
 
 
 class MainShell extends StatelessWidget {
   final Widget child;
   const MainShell({super.key, required this.child});
 
-  static const _routes = ['/dashboard', '/checkin', '/security', '/profile'];
+  static const _routes = ['/dashboard', '/checkin', '/insights', '/profile'];
 
   int _locationToIndex(String location) {
     if (location.startsWith('/checkin')) return 1;
-    if (location.startsWith('/security')) return 2;
+    if (location.startsWith('/insights')) return 2;
     if (location.startsWith('/profile')) return 3;
     return 0;
-  }
-
-  void _openThemeSettings(BuildContext context) {
-    final themeNotifier = Provider.of<ThemeNotifier>(context, listen: false);
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => ThemeSettingsSheet(
-        isDarkMode: themeNotifier.isDarkMode,
-        seedColor: themeNotifier.seedColor,
-        onThemeModeChanged: (val) => themeNotifier.setDarkMode(val),
-        onSeedColorChanged: (color) => themeNotifier.setSeedColor(color),
-      ),
-      showDragHandle: true,
-      isScrollControlled: true,
-    );
   }
 
   @override
@@ -56,29 +40,26 @@ class MainShell extends StatelessWidget {
             GoRouter.of(context).go(_routes[idx]);
           }
         },
-        destinations: [
-          const NavigationDestination(
+        destinations: const [
+          NavigationDestination(
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home),
             label: 'Dashboard',
           ),
-          const NavigationDestination(
+          NavigationDestination(
             icon: Icon(Icons.check_circle_outline),
             selectedIcon: Icon(Icons.check_circle),
             label: 'Check-in',
           ),
-          const NavigationDestination(
-            icon: Icon(Icons.security_outlined),
-            selectedIcon: Icon(Icons.security),
-            label: 'Security',
+          NavigationDestination(
+            icon: Icon(Icons.bar_chart_outlined),
+            selectedIcon: Icon(Icons.bar_chart),
+            label: 'Insights',
           ),
           NavigationDestination(
-            icon: const Icon(Icons.person_outline),
-            selectedIcon: const Icon(Icons.person),
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
             label: 'Profile',
-            // theme shortcut on long-press via GestureDetector wrapping is
-            // not possible on NavigationDestination; put it in profile page.
-            // Expose it via an icon in the profile app bar instead.
           ),
         ],
       ),
@@ -120,6 +101,14 @@ final appRouter = GoRouter(
       path: '/fitness',
       builder: (context, state) => const FitnessPage(),
     ),
+    GoRoute(
+      path: '/history',
+      builder: (context, state) => const HistoryPage(),
+    ),
+    GoRoute(
+      path: '/security',
+      builder: (context, state) => const SecuritySettingsPage(),
+    ),
     ShellRoute(
       builder: (context, state, child) => MainShell(child: child),
       routes: [
@@ -132,8 +121,8 @@ final appRouter = GoRouter(
           builder: (context, state) => const CheckinPage(),
         ),
         GoRoute(
-          path: '/security',
-          builder: (context, state) => const SecuritySettingsPage(),
+          path: '/insights',
+          builder: (context, state) => const InsightsPage(),
         ),
         GoRoute(
           path: '/profile',

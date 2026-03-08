@@ -22,6 +22,12 @@ class _CheckinPageState extends State<CheckinPage>
   String? _selectedMood;
   bool _isAnalyzing = false;
 
+  // New fields
+  String? _selectedFlow;
+  double _painLevel = 0;
+  int _waterGlasses = 0;
+  double _sleepHours = 7;
+
   // Parsed AI response sections
   String _insight = '';
   String _nutritionTip = '';
@@ -36,6 +42,13 @@ class _CheckinPageState extends State<CheckinPage>
     '⚡ Energetic',
     '😰 Anxious',
     '🤒 Unwell',
+  ];
+
+  static const _flowOptions = [
+    '💧 Spotting',
+    '🔵 Light',
+    '🔴 Medium',
+    '🩸 Heavy',
   ];
 
   late AnimationController _animController;
@@ -93,6 +106,9 @@ The user is on day $cycleDay of their menstrual cycle (${phase == 'Unknown' ? 'p
 Mood: $_selectedMood
 How they feel: ${_moodController.text.trim()}
 Symptoms: ${symptoms.isEmpty ? 'None reported' : symptoms}
+Pain level: ${_painLevel.round()}/5
+Sleep last night: ${_sleepHours.round()} hours
+Water intake: $_waterGlasses glasses
 
 Based on their mood, how they feel, symptoms, and cycle phase, provide THREE short personalised recommendations. Return ONLY valid JSON (no markdown, no extra text) in this exact format:
 {
@@ -134,8 +150,26 @@ Based on their mood, how they feel, symptoms, and cycle phase, provide THREE sho
               _fitnessTip = (parsed['fitness'] as String?)?.trim() ?? '';
             });
           } catch (_) {
-            // If JSON parse fails, show raw content as insight
             setState(() => _insight = content.trim());
+          }
+
+          // Save check-in and wellness data to state
+          if (mounted) {
+            final checkinState = Provider.of<CycleState>(context, listen: false);
+            await checkinState.logCheckin({
+              'mood': _selectedMood,
+              'description': _moodController.text.trim(),
+              'symptoms': _symptomsController.text.trim(),
+              'flow': _selectedFlow,
+              'painLevel': _painLevel.round(),
+              'waterGlasses': _waterGlasses,
+              'sleepHours': _sleepHours.round(),
+              'insight': _insight,
+              'phase': checkinState.currentPhase,
+              'cycleDay': checkinState.cycleDay,
+            });
+            await checkinState.logWater(_waterGlasses);
+            await checkinState.logSleep(_sleepHours.round());
           }
         }
       } else {
@@ -157,6 +191,24 @@ Based on their mood, how they feel, symptoms, and cycle phase, provide THREE sho
       _fitnessTip =
           'A gentle 15-minute walk or some light stretching can do wonders for your mood and energy.';
     });
+    // Still save check-in data
+    if (mounted) {
+      final checkinState = Provider.of<CycleState>(context, listen: false);
+      checkinState.logCheckin({
+        'mood': _selectedMood,
+        'description': _moodController.text.trim(),
+        'symptoms': _symptomsController.text.trim(),
+        'flow': _selectedFlow,
+        'painLevel': _painLevel.round(),
+        'waterGlasses': _waterGlasses,
+        'sleepHours': _sleepHours.round(),
+        'insight': _insight,
+        'phase': checkinState.currentPhase,
+        'cycleDay': checkinState.cycleDay,
+      });
+      checkinState.logWater(_waterGlasses);
+      checkinState.logSleep(_sleepHours.round());
+    }
   }
 
   bool get _hasResults =>
@@ -218,8 +270,7 @@ Based on their mood, how they feel, symptoms, and cycle phase, provide THREE sho
                       if (val) Haptics.selectionClick();
                       setState(() => _selectedMood = val ? mood : null);
                     },
-                    selectedColor:
-                        scheme.primaryContainer,
+                    selectedColor: scheme.primaryContainer,
                     checkmarkColor: scheme.onPrimaryContainer,
                     labelStyle: TextStyle(
                       color: selected
@@ -272,6 +323,122 @@ Based on their mood, how they feel, symptoms, and cycle phase, provide THREE sho
                 ),
                 minLines: 1,
                 maxLines: 3,
+              ),
+              const SizedBox(height: 20),
+
+              // ── Flow Intensity (only during Menstrual phase) ─────────
+              Consumer<CycleState>(
+                builder: (context, state, _) {
+                  if (state.periodStartDate == null ||
+                      state.currentPhase != 'Menstrual') {
+                    return const SizedBox.shrink();
+                  }
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Flow intensity today',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: scheme.onSurface.withValues(alpha: 0.7))),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _flowOptions.map((flow) {
+                          final selected = _selectedFlow == flow;
+                          return FilterChip(
+                            label: Text(flow),
+                            selected: selected,
+                            onSelected: (val) {
+                              Haptics.selectionClick();
+                              setState(() => _selectedFlow = val ? flow : null);
+                            },
+                            selectedColor: const Color(0xFFE57373).withValues(alpha: 0.3),
+                            checkmarkColor: const Color(0xFFE57373),
+                            labelStyle: TextStyle(
+                              color: selected
+                                  ? const Color(0xFFE57373)
+                                  : scheme.onSurface,
+                              fontWeight: selected
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                  );
+                },
+              ),
+
+              // ── Pain Scale ───────────────────────────────────────────
+              Text('Pain level: ${_painLevel.round()}/5',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: scheme.onSurface.withValues(alpha: 0.7))),
+              Slider(
+                value: _painLevel,
+                min: 0,
+                max: 5,
+                divisions: 5,
+                label: '${_painLevel.round()}',
+                activeColor: const Color(0xFFE57373),
+                onChanged: (val) => setState(() => _painLevel = val),
+              ),
+              const SizedBox(height: 8),
+
+              // ── Water Glasses ─────────────────────────────────────────
+              Text('Water today: $_waterGlasses glasses',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: scheme.onSurface.withValues(alpha: 0.7))),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: List.generate(8, (index) {
+                  final filled = index < _waterGlasses;
+                  return GestureDetector(
+                    onTap: () {
+                      Haptics.selectionClick();
+                      setState(() {
+                        if (index + 1 == _waterGlasses) {
+                          _waterGlasses = 0;
+                        } else {
+                          _waterGlasses = index + 1;
+                        }
+                      });
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 3),
+                      child: Icon(
+                        filled
+                            ? Icons.water_drop
+                            : Icons.water_drop_outlined,
+                        color: filled
+                            ? const Color(0xFF29B6F6)
+                            : scheme.onSurface.withValues(alpha: 0.3),
+                        size: 30,
+                      ),
+                    ),
+                  );
+                }),
+              ),
+              const SizedBox(height: 20),
+
+              // ── Sleep Hours ───────────────────────────────────────────
+              Text('Sleep last night: ${_sleepHours.round()} hrs',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: scheme.onSurface.withValues(alpha: 0.7))),
+              Slider(
+                value: _sleepHours,
+                min: 0,
+                max: 12,
+                divisions: 12,
+                label: '${_sleepHours.round()} hrs',
+                activeColor: const Color(0xFF7E57C2),
+                onChanged: (val) => setState(() => _sleepHours = val),
               ),
               const SizedBox(height: 24),
 

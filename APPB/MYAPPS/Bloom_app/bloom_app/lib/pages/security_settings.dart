@@ -132,34 +132,3 @@ class _SecuritySettingsPageState extends State<SecuritySettingsPage> with Single
   }
 }
 
-class _BiometricSection extends StatelessWidget {
-  final bool enabled;
-  final ValueChanged<bool> onChanged;
-  const _BiometricSection({required this.enabled, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        const Text('Enable Biometrics'),
-        CupertinoSwitch(value: enabled, onChanged: onChanged),
-      ],
-    );
-  }
-}
-
-class _DeleteSection extends StatelessWidget {
-  final VoidCallback onDelete;
-  const _DeleteSection({required this.onDelete});
-
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton.icon(
-      style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-      onPressed: onDelete,
-      icon: const Icon(Icons.delete),
-      label: const Text('Delete All Data'),
-    );
-  }
-}

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/notification_service.dart';
 
 class CycleState extends ChangeNotifier {
   DateTime selectedDate = DateTime.now();
@@ -13,12 +14,32 @@ class CycleState extends ChangeNotifier {
   Map<String, dynamic> advice = {};
   List<DateTime> _periodHistory = [];
 
+  // New fields
+  int customCycleLength = 28;
+  bool birthControlMode = false;
+  List<Map<String, dynamic>> _checkinHistory = [];
+  Map<String, int> _waterSleepToday = {};
+
   CycleState() {
     _load();
   }
 
   DateTime? get periodStartDate => _periodStartDate;
   List<DateTime> get periodHistory => List.unmodifiable(_periodHistory);
+
+  // New getters
+  DateTime? get fertileWindowStart =>
+      _periodStartDate?.add(const Duration(days: 10));
+  DateTime? get fertileWindowEnd =>
+      _periodStartDate?.add(const Duration(days: 16));
+  DateTime? get ovulationDay =>
+      _periodStartDate?.add(const Duration(days: 14));
+
+  List<Map<String, dynamic>> get checkinHistory =>
+      List.unmodifiable(_checkinHistory);
+
+  int get waterToday => _waterSleepToday['water'] ?? 0;
+  int get sleepToday => _waterSleepToday['sleep'] ?? 0;
 
   /// Average cycle length calculated from logged period history.
   /// Falls back to user-set cycleLength if fewer than 2 periods logged.
@@ -55,6 +76,11 @@ class CycleState extends ChangeNotifier {
 
   String get currentPhase {
     if (_periodStartDate == null) return 'Unknown';
+    if (birthControlMode) {
+      // In birth control mode: only Active/Inactive phases
+      final day = cycleDay;
+      return day <= 21 ? 'Active' : 'Inactive';
+    }
     final day = cycleDay;
     if (day <= 5) return 'Menstrual';
     if (day <= 13) return 'Follicular';
@@ -72,6 +98,10 @@ class CycleState extends ChangeNotifier {
         return const Color(0xFFFFD54F);
       case 'Luteal':
         return const Color(0xFFBA68C8);
+      case 'Active':
+        return const Color(0xFF42A5F5);
+      case 'Inactive':
+        return const Color(0xFF78909C);
       default:
         return const Color(0xFFE8A0BF);
     }
@@ -87,6 +117,10 @@ class CycleState extends ChangeNotifier {
         return '🌕';
       case 'Luteal':
         return '🍂';
+      case 'Active':
+        return '💊';
+      case 'Inactive':
+        return '⏸️';
       default:
         return '🌸';
     }
@@ -102,6 +136,10 @@ class CycleState extends ChangeNotifier {
         return 'Peak energy and confidence. Tackle big tasks and connect with others.';
       case 'Luteal':
         return 'Wind down gradually. Focus on finishing tasks and self-care.';
+      case 'Active':
+        return 'Active pill phase. Take your pill at the same time each day.';
+      case 'Inactive':
+        return 'Inactive pill phase. You may experience withdrawal bleeding.';
       default:
         return 'Log your last period start to get personalized phase insights.';
     }
@@ -115,6 +153,7 @@ class CycleState extends ChangeNotifier {
     }
     cycleLength = prefs.getInt('cycleLength') ?? 28;
     aiInsight = prefs.getString('aiInsight') ?? '';
+
     // Load period history
     final historyJson = prefs.getString('periodHistory');
     if (historyJson != null) {
@@ -123,16 +162,35 @@ class CycleState extends ChangeNotifier {
           .map((ms) => DateTime.fromMillisecondsSinceEpoch(ms as int))
           .toList();
     } else if (_periodStartDate != null) {
-      // Migrate: seed history with existing start date
       _periodHistory = [_periodStartDate!];
     }
+
+    // Load check-in history
+    final checkinJson = prefs.getString('checkin_history');
+    if (checkinJson != null) {
+      final List<dynamic> list = jsonDecode(checkinJson);
+      _checkinHistory = list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    }
+
+    // Load water/sleep
+    final waterSleepJson = prefs.getString('water_sleep_today');
+    if (waterSleepJson != null) {
+      final Map<String, dynamic> map = jsonDecode(waterSleepJson);
+      _waterSleepToday = map.map((k, v) => MapEntry(k, v as int));
+    }
+
+    // Load custom cycle length
+    customCycleLength = prefs.getInt('custom_cycle_length') ?? 28;
+
+    // Load birth control mode
+    birthControlMode = prefs.getBool('birth_control_mode') ?? false;
+
     notifyListeners();
   }
 
   Future<void> logPeriodStart(DateTime date) async {
     _periodStartDate = date;
     aiInsight = '';
-    // Add to history if not already present (same day)
     final alreadyLogged = _periodHistory.any((d) =>
         d.year == date.year && d.month == date.month && d.day == date.day);
     if (!alreadyLogged) {
@@ -146,6 +204,59 @@ class CycleState extends ChangeNotifier {
       'periodHistory',
       jsonEncode(_periodHistory.map((d) => d.millisecondsSinceEpoch).toList()),
     );
+
+    // Schedule late period alert
+    if (nextPeriodDate != null) {
+      await NotificationService.scheduleLateperiodAlert(nextPeriodDate!);
+    }
+  }
+
+  Future<void> logCheckin(Map<String, dynamic> entry) async {
+    final entryWithTimestamp = {
+      ...entry,
+      'timestamp': DateTime.now().toIso8601String(),
+    };
+    _checkinHistory.add(entryWithTimestamp);
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('checkin_history', jsonEncode(_checkinHistory));
+  }
+
+  Future<void> logWater(int glasses) async {
+    _waterSleepToday['water'] = glasses;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('water_sleep_today', jsonEncode(_waterSleepToday));
+  }
+
+  Future<void> logSleep(int hours) async {
+    _waterSleepToday['sleep'] = hours;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('water_sleep_today', jsonEncode(_waterSleepToday));
+  }
+
+  Future<void> setCycleLength(int length) async {
+    customCycleLength = length;
+    cycleLength = length;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('custom_cycle_length', length);
+    await prefs.setInt('cycleLength', length);
+  }
+
+  Future<void> setBirthControlMode(bool val) async {
+    birthControlMode = val;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('birth_control_mode', val);
+  }
+
+  Future<void> clearCheckinHistory() async {
+    _checkinHistory.clear();
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('checkin_history');
   }
 
   Future<void> clearPeriodHistory() async {
@@ -195,6 +306,8 @@ class CycleState extends ChangeNotifier {
     tags = [];
     adviceType = 'Nutrition';
     advice = {};
+    _checkinHistory.clear();
+    _waterSleepToday.clear();
     notifyListeners();
   }
 }
