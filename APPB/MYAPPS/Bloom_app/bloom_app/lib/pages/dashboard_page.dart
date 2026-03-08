@@ -168,15 +168,16 @@ class _DashboardPageState extends State<DashboardPage> {
                     children: [
                       const SizedBox(height: 20),
 
+                      // ── Period Predictor (always visible) ────────────
+                      _buildPeriodPredictorCard(context, state),
+                      const SizedBox(height: 16),
+
                       // Stats chips row
                       if (state.periodStartDate != null) ...[
                         _buildStatsRow(context, state),
                         const SizedBox(height: 10),
-                        // Today's Wellness row
                         _buildWellnessRow(context, state),
                         const SizedBox(height: 14),
-                        _buildPredictionCard(context, state),
-                        const SizedBox(height: 24),
                       ],
 
                       // Calendar
@@ -347,6 +348,349 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  // ─── Period Predictor Card ────────────────────────────────────────────────
+
+  Widget _buildPeriodPredictorCard(BuildContext context, CycleState state) {
+    final scheme = Theme.of(context).colorScheme;
+    final hasDate = state.periodStartDate != null;
+    final nextDate = state.nextPeriodDate;
+    final days = state.daysUntilNextPeriod;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: hasDate
+              ? [
+                  const Color(0xFFE57373).withValues(alpha: 0.15),
+                  const Color(0xFFAD1457).withValues(alpha: 0.08),
+                ]
+              : [
+                  scheme.primaryContainer.withValues(alpha: 0.5),
+                  scheme.primaryContainer.withValues(alpha: 0.2),
+                ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: hasDate
+              ? const Color(0xFFE57373).withValues(alpha: 0.35)
+              : scheme.outline.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE57373).withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.calendar_month,
+                    color: Color(0xFFE57373), size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Period Predictor',
+                      style: GoogleFonts.philosopher(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: scheme.onSurface,
+                      ),
+                    ),
+                    Text(
+                      hasDate
+                          ? 'Based on your ${state.averageCycleLength}-day cycle'
+                          : 'Enter your last period date to predict',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: scheme.onSurface.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              TextButton(
+                onPressed: () => _logPeriod(state),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFFE57373),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  backgroundColor:
+                      const Color(0xFFE57373).withValues(alpha: 0.1),
+                ),
+                child: Text(
+                  hasDate ? 'Update' : 'Set Date',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+
+          if (!hasDate) ...[
+            const SizedBox(height: 16),
+            GestureDetector(
+              onTap: () => _logPeriod(state),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: scheme.primaryContainer.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                      color: scheme.primary.withValues(alpha: 0.3),
+                      style: BorderStyle.solid),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.add_circle_outline,
+                        color: scheme.primary, size: 20),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Tap to enter your last period start date',
+                      style: TextStyle(
+                        color: scheme.primary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(Icons.info_outline,
+                    size: 13, color: scheme.onSurface.withValues(alpha: 0.4)),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: Text(
+                    'The app will calculate your next period, ovulation, and fertile window automatically.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: scheme.onSurface.withValues(alpha: 0.45),
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ] else if (nextDate != null && days != null) ...[
+            const SizedBox(height: 16),
+            // Timeline row
+            _buildCycleTimeline(context, state, nextDate, days),
+            const SizedBox(height: 14),
+            // Prediction result box
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: _predictionColor(days).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: _predictionColor(days).withValues(alpha: 0.35)),
+              ),
+              child: Row(
+                children: [
+                  Icon(_predictionIcon(days),
+                      color: _predictionColor(days), size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _predictionLabel(days),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: _predictionColor(days),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Expected: ${DateFormat('EEEE, MMMM d').format(nextDate)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: scheme.onSurface.withValues(alpha: 0.6),
+                          ),
+                        ),
+                        if (state.periodHistory.length >= 3)
+                          Text(
+                            'High accuracy — based on ${state.periodHistory.length} cycles',
+                            style: const TextStyle(
+                                fontSize: 11, color: Color(0xFF81C784)),
+                          )
+                        else
+                          Text(
+                            'Log more periods for higher accuracy',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: scheme.onSurface.withValues(alpha: 0.4),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCycleTimeline(BuildContext context, CycleState state,
+      DateTime nextDate, int days) {
+    final scheme = Theme.of(context).colorScheme;
+    final periodStart = state.periodStartDate!;
+    final ovulation = state.ovulationDay;
+    final fertile = state.fertileWindowStart;
+
+    final events = <_TimelineEvent>[
+      _TimelineEvent(
+        label: 'Last Period',
+        date: periodStart,
+        color: const Color(0xFFE57373),
+        icon: '🩸',
+        isPast: true,
+      ),
+      if (fertile != null)
+        _TimelineEvent(
+          label: 'Fertile',
+          date: fertile,
+          color: const Color(0xFF81C784),
+          icon: '🌿',
+          isPast: DateTime.now().isAfter(fertile),
+        ),
+      if (ovulation != null)
+        _TimelineEvent(
+          label: 'Ovulation',
+          date: ovulation,
+          color: const Color(0xFFFFD54F),
+          icon: '⭐',
+          isPast: DateTime.now().isAfter(ovulation),
+        ),
+      _TimelineEvent(
+        label: 'Next Period',
+        date: nextDate,
+        color: const Color(0xFFE57373),
+        icon: '🩸',
+        isPast: days < 0,
+      ),
+    ];
+
+    return SizedBox(
+      height: 72,
+      child: Row(
+        children: [
+          for (int i = 0; i < events.length; i++) ...[
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: events[i].color.withValues(
+                          alpha: events[i].isPast ? 0.15 : 0.25),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: events[i].color.withValues(
+                            alpha: events[i].isPast ? 0.3 : 0.8),
+                        width: events[i].isPast ? 1 : 2,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(events[i].icon,
+                          style: TextStyle(
+                              fontSize: events[i].isPast ? 14 : 16)),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    events[i].label,
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: events[i].isPast
+                          ? FontWeight.normal
+                          : FontWeight.bold,
+                      color: events[i].isPast
+                          ? scheme.onSurface.withValues(alpha: 0.4)
+                          : events[i].color,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  Text(
+                    DateFormat('MMM d').format(events[i].date),
+                    style: TextStyle(
+                      fontSize: 9,
+                      color: scheme.onSurface.withValues(alpha: 0.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (i < events.length - 1)
+              Expanded(
+                child: Container(
+                  height: 1.5,
+                  margin: const EdgeInsets.only(bottom: 24),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        events[i].color.withValues(alpha: 0.4),
+                        events[i + 1].color.withValues(alpha: 0.4),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Color _predictionColor(int days) {
+    if (days < 0) return const Color(0xFFE57373);
+    if (days == 0) return const Color(0xFFE57373);
+    if (days <= 3) return const Color(0xFFFF9800);
+    if (days <= 7) return const Color(0xFFFFCA28);
+    return const Color(0xFF81C784);
+  }
+
+  IconData _predictionIcon(int days) {
+    if (days < 0) return Icons.notifications_active_outlined;
+    if (days == 0) return Icons.circle_notifications_outlined;
+    if (days <= 3) return Icons.warning_amber_rounded;
+    return Icons.event_available_outlined;
+  }
+
+  String _predictionLabel(int days) {
+    if (days < 0) return 'Period may be ${-days} day${-days == 1 ? '' : 's'} late';
+    if (days == 0) return 'Your period is expected today';
+    if (days == 1) return 'Period expected tomorrow — get ready!';
+    if (days <= 3) return 'Period in $days days — prepare!';
+    if (days <= 7) return 'Period in $days days';
+    return 'Next period in $days days';
+  }
+
   // ─── Stats Row ────────────────────────────────────────────────────────────
 
   Widget _buildStatsRow(BuildContext context, CycleState state) {
@@ -425,89 +769,6 @@ class _DashboardPageState extends State<DashboardPage> {
               fontSize: 12,
               fontWeight: FontWeight.w600,
               color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPredictionCard(BuildContext context, CycleState state) {
-    final days = state.daysUntilNextPeriod;
-    final nextDate = state.nextPeriodDate;
-    if (days == null || nextDate == null) return const SizedBox.shrink();
-
-    final String label;
-    final IconData icon;
-    final Color color;
-
-    if (days < 0) {
-      label = 'Period may be ${(-days)} day${(-days) == 1 ? '' : 's'} late';
-      icon = Icons.notifications_active_outlined;
-      color = const Color(0xFFE57373);
-    } else if (days == 0) {
-      label = 'Your period is expected today';
-      icon = Icons.circle_notifications_outlined;
-      color = const Color(0xFFE57373);
-    } else if (days <= 3) {
-      label = 'Period expected in $days day${days == 1 ? '' : 's'} — prepare!';
-      icon = Icons.warning_amber_rounded;
-      color = const Color(0xFFFF9800);
-    } else {
-      label = 'Next period in $days days';
-      icon = Icons.calendar_month_outlined;
-      color = state.phaseColor;
-    }
-
-    final dateStr = DateFormat('EEE, MMM d').format(nextDate);
-    final confidence = state.periodHistory.length >= 3
-        ? 'High confidence'
-        : state.periodHistory.length == 2
-            ? 'Moderate confidence'
-            : 'Based on ${state.averageCycleLength}-day cycle';
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(9),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color, size: 18),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: color,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '$dateStr · $confidence',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.55),
-                  ),
-                ),
-              ],
             ),
           ),
         ],
@@ -1028,6 +1289,23 @@ class _DashboardPageState extends State<DashboardPage> {
       ),
     );
   }
+}
+
+// ─── Timeline Event Model ─────────────────────────────────────────────────────
+
+class _TimelineEvent {
+  final String label;
+  final DateTime date;
+  final Color color;
+  final String icon;
+  final bool isPast;
+  const _TimelineEvent({
+    required this.label,
+    required this.date,
+    required this.color,
+    required this.icon,
+    required this.isPast,
+  });
 }
 
 // ─── Custom Painter: Cycle Ring ──────────────────────────────────────────────

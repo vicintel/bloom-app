@@ -1,4 +1,6 @@
 {
+  "outputDirectory": "build/web",
+  "buildCommand": "",
   "routes": [
     { "handle": "filesystem" },
     { "src": "/.*", "dest": "/index.html" }
