@@ -171,6 +171,8 @@ class _DashboardPageState extends State<DashboardPage> {
                       // Stats chips row
                       if (state.periodStartDate != null) ...[
                         _buildStatsRow(context, state),
+                        const SizedBox(height: 14),
+                        _buildPredictionCard(context, state),
                         const SizedBox(height: 24),
                       ],
 
@@ -372,6 +374,89 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  Widget _buildPredictionCard(BuildContext context, CycleState state) {
+    final days = state.daysUntilNextPeriod;
+    final nextDate = state.nextPeriodDate;
+    if (days == null || nextDate == null) return const SizedBox.shrink();
+
+    final String label;
+    final IconData icon;
+    final Color color;
+
+    if (days < 0) {
+      label = 'Period may be ${(-days)} day${(-days) == 1 ? '' : 's'} late';
+      icon = Icons.notifications_active_outlined;
+      color = const Color(0xFFE57373);
+    } else if (days == 0) {
+      label = 'Your period is expected today';
+      icon = Icons.circle_notifications_outlined;
+      color = const Color(0xFFE57373);
+    } else if (days <= 3) {
+      label = 'Period expected in $days day${days == 1 ? '' : 's'} — prepare!';
+      icon = Icons.warning_amber_rounded;
+      color = const Color(0xFFFF9800);
+    } else {
+      label = 'Next period in $days days';
+      icon = Icons.calendar_month_outlined;
+      color = state.phaseColor;
+    }
+
+    final dateStr = DateFormat('EEE, MMM d').format(nextDate);
+    final confidence = state.periodHistory.length >= 3
+        ? 'High confidence'
+        : state.periodHistory.length == 2
+            ? 'Moderate confidence'
+            : 'Based on ${state.averageCycleLength}-day cycle';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(9),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 18),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$dateStr · $confidence',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withOpacity(0.55),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _statChip(
       BuildContext context, IconData icon, String label, Color color) {
     return Expanded(
@@ -407,6 +492,7 @@ class _DashboardPageState extends State<DashboardPage> {
   // ─── Calendar ─────────────────────────────────────────────────────────────
 
   Widget _buildCalendarCard(BuildContext context, CycleState state) {
+    final nextPeriod = state.nextPeriodDate;
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
@@ -415,57 +501,118 @@ class _DashboardPageState extends State<DashboardPage> {
           color: Theme.of(context).colorScheme.outline.withOpacity(0.15),
         ),
       ),
-      child: TableCalendar(
-        firstDay: DateTime.utc(2024, 1, 1),
-        lastDay: DateTime.utc(2030, 12, 31),
-        focusedDay: _focusedDay,
-        calendarFormat: CalendarFormat.week,
-        selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-        onDaySelected: (selectedDay, focusedDay) {
-          setState(() {
-            _selectedDay = selectedDay;
-            _focusedDay = focusedDay;
-          });
-          state.updateDate(selectedDay);
-        },
-        calendarStyle: CalendarStyle(
-          selectedDecoration: BoxDecoration(
-            color: state.periodStartDate != null
-                ? state.phaseColor
-                : Theme.of(context).colorScheme.primary,
-            shape: BoxShape.circle,
-          ),
-          todayDecoration: BoxDecoration(
-            color: (state.periodStartDate != null
+      child: Column(
+        children: [
+          TableCalendar(
+            firstDay: DateTime.utc(2024, 1, 1),
+            lastDay: DateTime.utc(2030, 12, 31),
+            focusedDay: _focusedDay,
+            calendarFormat: CalendarFormat.week,
+            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+            onDaySelected: (selectedDay, focusedDay) {
+              setState(() {
+                _selectedDay = selectedDay;
+                _focusedDay = focusedDay;
+              });
+              state.updateDate(selectedDay);
+            },
+            calendarBuilders: CalendarBuilders(
+              defaultBuilder: (context, day, focusedDay) {
+                // Highlight predicted next period day
+                if (nextPeriod != null && isSameDay(day, nextPeriod)) {
+                  return Container(
+                    margin: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE57373).withOpacity(0.25),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                          color: const Color(0xFFE57373), width: 1.5),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${day.day}',
+                        style: const TextStyle(
+                          color: Color(0xFFE57373),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                return null;
+              },
+            ),
+            calendarStyle: CalendarStyle(
+              selectedDecoration: BoxDecoration(
+                color: state.periodStartDate != null
                     ? state.phaseColor
-                    : Theme.of(context).colorScheme.primary)
-                .withOpacity(0.25),
-            shape: BoxShape.circle,
+                    : Theme.of(context).colorScheme.primary,
+                shape: BoxShape.circle,
+              ),
+              todayDecoration: BoxDecoration(
+                color: (state.periodStartDate != null
+                        ? state.phaseColor
+                        : Theme.of(context).colorScheme.primary)
+                    .withOpacity(0.25),
+                shape: BoxShape.circle,
+              ),
+              todayTextStyle: TextStyle(
+                color: state.periodStartDate != null
+                    ? state.phaseColor
+                    : Theme.of(context).colorScheme.primary,
+                fontWeight: FontWeight.bold,
+              ),
+              weekendTextStyle: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+              ),
+            ),
+            headerStyle: const HeaderStyle(
+              formatButtonVisible: false,
+              titleCentered: true,
+            ),
+            daysOfWeekStyle: DaysOfWeekStyle(
+              weekdayStyle: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                fontSize: 12,
+              ),
+              weekendStyle: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+                fontSize: 12,
+              ),
+            ),
           ),
-          todayTextStyle: TextStyle(
-            color: state.periodStartDate != null
-                ? state.phaseColor
-                : Theme.of(context).colorScheme.primary,
-            fontWeight: FontWeight.bold,
-          ),
-          weekendTextStyle: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-          ),
-        ),
-        headerStyle: const HeaderStyle(
-          formatButtonVisible: false,
-          titleCentered: true,
-        ),
-        daysOfWeekStyle: DaysOfWeekStyle(
-          weekdayStyle: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
-            fontSize: 12,
-          ),
-          weekendStyle: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
-            fontSize: 12,
-          ),
-        ),
+          if (nextPeriod != null) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE57373).withOpacity(0.25),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                          color: const Color(0xFFE57373), width: 1.5),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Predicted period start',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withOpacity(0.5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

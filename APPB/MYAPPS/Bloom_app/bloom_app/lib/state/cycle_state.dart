@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -10,12 +11,41 @@ class CycleState extends ChangeNotifier {
   List<String> tags = [];
   String adviceType = 'Nutrition';
   Map<String, dynamic> advice = {};
+  List<DateTime> _periodHistory = [];
 
   CycleState() {
     _load();
   }
 
   DateTime? get periodStartDate => _periodStartDate;
+  List<DateTime> get periodHistory => List.unmodifiable(_periodHistory);
+
+  /// Average cycle length calculated from logged period history.
+  /// Falls back to user-set cycleLength if fewer than 2 periods logged.
+  int get averageCycleLength {
+    if (_periodHistory.length < 2) return cycleLength;
+    final sorted = [..._periodHistory]..sort((a, b) => a.compareTo(b));
+    int total = 0;
+    for (int i = 1; i < sorted.length; i++) {
+      total += sorted[i].difference(sorted[i - 1]).inDays;
+    }
+    return (total / (sorted.length - 1)).round();
+  }
+
+  /// Predicted start date of next period.
+  DateTime? get nextPeriodDate {
+    if (_periodStartDate == null) return null;
+    return _periodStartDate!.add(Duration(days: averageCycleLength));
+  }
+
+  /// Days until next predicted period (can be negative if overdue).
+  int? get daysUntilNextPeriod {
+    if (nextPeriodDate == null) return null;
+    final today = DateTime.now();
+    final next = DateTime(nextPeriodDate!.year, nextPeriodDate!.month, nextPeriodDate!.day);
+    final todayNorm = DateTime(today.year, today.month, today.day);
+    return next.difference(todayNorm).inDays;
+  }
 
   int get cycleDay {
     if (_periodStartDate == null) return 0;
@@ -85,16 +115,44 @@ class CycleState extends ChangeNotifier {
     }
     cycleLength = prefs.getInt('cycleLength') ?? 28;
     aiInsight = prefs.getString('aiInsight') ?? '';
+    // Load period history
+    final historyJson = prefs.getString('periodHistory');
+    if (historyJson != null) {
+      final List<dynamic> list = jsonDecode(historyJson);
+      _periodHistory = list
+          .map((ms) => DateTime.fromMillisecondsSinceEpoch(ms as int))
+          .toList();
+    } else if (_periodStartDate != null) {
+      // Migrate: seed history with existing start date
+      _periodHistory = [_periodStartDate!];
+    }
     notifyListeners();
   }
 
   Future<void> logPeriodStart(DateTime date) async {
     _periodStartDate = date;
-    aiInsight = ''; // clear cached insight so dashboard refetches for new phase
+    aiInsight = '';
+    // Add to history if not already present (same day)
+    final alreadyLogged = _periodHistory.any((d) =>
+        d.year == date.year && d.month == date.month && d.day == date.day);
+    if (!alreadyLogged) {
+      _periodHistory.add(date);
+    }
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('periodStartDate', date.millisecondsSinceEpoch);
     await prefs.remove('aiInsight');
+    await prefs.setString(
+      'periodHistory',
+      jsonEncode(_periodHistory.map((d) => d.millisecondsSinceEpoch).toList()),
+    );
+  }
+
+  Future<void> clearPeriodHistory() async {
+    _periodHistory.clear();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('periodHistory');
+    notifyListeners();
   }
 
   void updateDate(DateTime date) {
