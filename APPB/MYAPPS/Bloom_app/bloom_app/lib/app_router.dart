@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter/material.dart';
 import 'services/auth_service.dart';
 import 'pages/login_page.dart';
 import 'pages/dashboard_page.dart';
@@ -60,6 +60,9 @@ class MainShell extends StatelessWidget {
             icon: Icon(Icons.person_outline),
             selectedIcon: Icon(Icons.person),
             label: 'Profile',
+            // theme shortcut on long-press via GestureDetector wrapping is
+            // not possible on NavigationDestination; put it in profile page.
+            // Expose it via an icon in the profile app bar instead.
           ),
         ],
       ),
