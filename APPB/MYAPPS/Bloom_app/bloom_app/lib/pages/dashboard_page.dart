@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../state/cycle_state.dart';
+import '../state/message_store.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -34,6 +35,24 @@ class _DashboardPageState extends State<DashboardPage> {
     if (state.aiInsight.isEmpty && state.periodStartDate != null) {
       await _fetchInsight(state);
     }
+    _seedMessages(state);
+  }
+
+  void _seedMessages(CycleState state) {
+    if (state.periodStartDate == null) return;
+    final store = Provider.of<MessageStore>(context, listen: false);
+    final nextPeriod = state.nextPeriodDate;
+    final ovulation = state.ovulationDay;
+    final now = DateTime.now();
+    store.seedCycleMessages(
+      daysUntilPeriod: nextPeriod != null
+          ? nextPeriod.difference(DateTime(now.year, now.month, now.day)).inDays
+          : null,
+      daysUntilOvulation: ovulation != null
+          ? ovulation.difference(DateTime(now.year, now.month, now.day)).inDays
+          : null,
+      currentPhase: state.currentPhase.toLowerCase(),
+    );
   }
 
   Future<void> _fetchInsight(CycleState state) async {
@@ -152,6 +171,47 @@ class _DashboardPageState extends State<DashboardPage> {
                         ? 'Update period start'
                         : 'Log period start',
                     onPressed: () => _logPeriod(state),
+                  ),
+                  Consumer<MessageStore>(
+                    builder: (context, store, _) {
+                      final count = store.unreadCount;
+                      return Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.notifications_outlined,
+                                color: Colors.white),
+                            tooltip: 'Notifications',
+                            onPressed: () => context.push('/messages'),
+                          ),
+                          if (count > 0)
+                            Positioned(
+                              right: 6,
+                              top: 6,
+                              child: IgnorePointer(
+                                child: Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.redAccent,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  constraints: const BoxConstraints(
+                                      minWidth: 18, minHeight: 18),
+                                  child: Text(
+                                    count > 9 ? '9+' : '$count',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      );
+                    },
                   ),
                 ],
                 flexibleSpace: FlexibleSpaceBar(

@@ -8,6 +8,7 @@ import 'pages/locked_page.dart';
 import 'pages/onboarding_page.dart';
 import 'services/notification_service.dart';
 import 'state/cycle_state.dart';
+import 'state/message_store.dart';
 import 'state/theme_notifier.dart';
 import 'widgets/privacy_shield.dart';
 
@@ -19,6 +20,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => CycleState()),
         ChangeNotifierProvider(create: (_) => ThemeNotifier()),
+        ChangeNotifierProvider(create: (_) => MessageStore()..load()),
       ],
       child: const RootApp(),
     ),
