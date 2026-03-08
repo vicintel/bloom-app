@@ -1,0 +1,8 @@
+{
+  "buildCommand": "exit 0",
+  "outputDirectory": "APPB/MYAPPS/Bloom_app/bloom_app/build/web",
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/.*", "dest": "/index.html" }
+  ]
+}
