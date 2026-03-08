@@ -51,7 +51,7 @@ class _DashboardPageState extends State<DashboardPage> {
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
-          'model': 'mixtral-8x7b-32768',
+          'model': 'llama-3.3-70b-versatile',
           'messages': [
             {
               'role': 'system',
@@ -620,7 +620,7 @@ class _DashboardPageState extends State<DashboardPage> {
           label: 'Nutrition',
           subtitle: 'Phase foods',
           gradientColors: [const Color(0xFF43A047), const Color(0xFF1B5E20)],
-          onTap: () => context.go('/checkin'),
+          onTap: () => context.push('/nutrition'),
         ),
         _buildActionCard(
           context,
@@ -628,7 +628,7 @@ class _DashboardPageState extends State<DashboardPage> {
           label: 'Fitness',
           subtitle: 'Workouts',
           gradientColors: [const Color(0xFF1E88E5), const Color(0xFF0D47A1)],
-          onTap: () => context.go('/checkin'),
+          onTap: () => context.push('/fitness'),
         ),
       ],
     );

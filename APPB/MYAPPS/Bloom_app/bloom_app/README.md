@@ -98,7 +98,7 @@ lib/
 | Framework | Flutter 3.x (Dart) |
 | State Management | Provider |
 | Navigation | go_router |
-| AI / LLM | Groq API (Mixtral-8x7B) |
+| AI / LLM | Groq API (Llama 3.3 70B) |
 | Local Storage | shared_preferences, flutter_secure_storage |
 | Auth | local_auth (biometrics) |
 | Notifications | flutter_local_notifications |

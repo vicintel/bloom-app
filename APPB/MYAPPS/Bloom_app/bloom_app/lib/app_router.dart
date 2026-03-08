@@ -7,6 +7,8 @@ import 'pages/checkin_page.dart';
 import 'pages/security_settings.dart';
 import 'pages/signup_page.dart';
 import 'pages/profile_page.dart';
+import 'pages/nutrition_page.dart';
+import 'pages/fitness_page.dart';
 import 'state/theme_notifier.dart';
 import 'widgets/theme_settings_sheet.dart';
 import 'package:flutter/material.dart';
@@ -109,6 +111,14 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/signup',
       builder: (context, state) => const SignUpScreen(),
+    ),
+    GoRoute(
+      path: '/nutrition',
+      builder: (context, state) => const NutritionPage(),
+    ),
+    GoRoute(
+      path: '/fitness',
+      builder: (context, state) => const FitnessPage(),
     ),
     ShellRoute(
       builder: (context, state, child) => MainShell(child: child),
