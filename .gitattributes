@@ -1,0 +1,2 @@
+# Compiled Flutter web output: don't count it as the repo's language (Bloom is Dart).
+APPB/**/build/** linguist-generated=true

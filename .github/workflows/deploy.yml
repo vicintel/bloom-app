@@ -25,12 +25,13 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
-          channel: stable
+          channel: stable   # Bloom needs Dart 3.10.8+, newer than Flutter 3.24 ships
           cache: true
 
-      - name: Create .env from secret
-        run: echo "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" > .env
+      # The web build is public: anything bundled into it can be downloaded by anyone.
+      # So the AI key is NOT put in here; the web demo runs without AI replies.
+      - name: Create an empty .env (the app lists it as an asset)
+        run: touch .env
 
       - name: Install dependencies
         run: flutter pub get
